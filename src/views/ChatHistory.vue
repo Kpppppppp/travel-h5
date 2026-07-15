@@ -11,37 +11,36 @@
     </div>
     <div class="history-content">
       <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-        <van-list
-          v-model:loading="loading"
-          :finished="finished"
-          :immediate-check="false"
-          finished-text="没有更多了"
-          @load="loadHistory"
+        <div
+          v-for="item in historyList"
+          :key="item.sessionId"
+          class="history-item"
+          @click="viewDetail(item)"
         >
-          <div
-            v-for="item in historyList"
-            :key="item.sessionId"
-            class="history-item"
-            @click="viewDetail(item)"
-          >
-            <div class="history-info">
-              <div class="history-title">{{ formatTitle(item) }}</div>
-              <div class="history-time">{{ formatTime(item.updatedAt) }}</div>
-            </div>
-            <div class="history-actions">
-              <van-icon
-                name="delete-o"
-                size="20"
-                @click.stop="confirmDelete(item.sessionId)"
-              />
-            </div>
+          <div class="history-info">
+            <div class="history-title">{{ formatTitle(item) }}</div>
+            <div class="history-time">{{ formatTime(item.updatedAt) }}</div>
           </div>
-          <van-empty
-            v-if="!loading && historyList.length === 0"
-            description="暂无历史会话"
-          />
-        </van-list>
+          <div class="history-actions">
+            <van-icon
+              name="delete-o"
+              size="20"
+              @click.stop="confirmDelete(item.sessionId)"
+            />
+          </div>
+        </div>
+        <van-empty
+          v-if="!loading && historyList.length === 0"
+          description="暂无历史会话"
+        />
       </van-pull-refresh>
+      <div class="load-more" v-if="historyList.length > 0">
+        <van-loading v-if="loading && !refreshing" size="24px"
+          >加载中...</van-loading
+        >
+        <span v-else-if="finished" class="no-more">没有更多了</span>
+        <span v-else class="load-btn" @click="loadMore">加载更多</span>
+      </div>
     </div>
   </div>
 </template>
@@ -148,9 +147,14 @@ const loadHistory = async () => {
 const onRefresh = async () => {
   page.value = 1;
   finished.value = false;
-  loading.value = true;
   await loadHistory();
   refreshing.value = false;
+};
+
+const loadMore = () => {
+  if (!loading.value && !finished.value) {
+    loadHistory();
+  }
 };
 
 const viewDetail = (item) => {
@@ -254,5 +258,20 @@ onMounted(() => {
 
 .history-actions:active {
   color: #ee0a24;
+}
+
+.load-more {
+  text-align: center;
+  padding: 16px;
+  color: #969799;
+  font-size: 14px;
+}
+
+.load-btn {
+  color: #1989fa;
+}
+
+.no-more {
+  color: #969799;
 }
 </style>

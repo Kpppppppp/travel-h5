@@ -249,7 +249,12 @@ const handleLogin = async () => {
       username: accountForm.username,
       password: accountForm.password,
     });
-
+    if (res.success) {
+      showToast("登录成功");
+    } else {
+      showToast(res.error || "登录失败");
+      return;
+    }
     // 保存用户信息和 token 到 localStorage（7天有效期）
     const userInfo = {
       isLoggedIn: true,

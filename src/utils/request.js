@@ -55,7 +55,7 @@ request.interceptors.request.use(
 // 通用错误消息
 const errorMessages = {
   400: "请求参数错误",
-  401: "用户名或密码错误",
+  401: "请先登录",
   403: "没有权限",
   404: "请求的资源不存在",
   500: "服务器错误",
@@ -68,6 +68,13 @@ request.interceptors.response.use(
     // 成功响应
     if (response.status >= 200 && response.status < 300) {
       return data;
+    }
+    // 处理 401 未授权 - 跳转到登录页
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
+      window.location.href = "/login";
+      return Promise.reject({ success: false, error: "请先登录" });
     }
     // 错误响应
     const errorMsg =
@@ -96,8 +103,19 @@ export function del(url) {
 
 // 处理流式接口
 export async function fetchStream(url, data, onChunk, onComplete, onError) {
-  const baseUrl = getStreamBaseUrl();
-  const fullUrl = `${baseUrl}/api/travel/${url}`;
+  // 开发环境用绝对路径，生产环境用相对路径通过 Nginx 代理
+  let fullUrl;
+  if (import.meta.env.VITE_API_BASE_URL) {
+    fullUrl = `${import.meta.env.VITE_API_BASE_URL}/api/travel/${url}`;
+  } else if (import.meta.env.DEV) {
+    fullUrl = `http://127.0.0.1:3300/api/travel/${url}`;
+  } else {
+    fullUrl = `/api/travel/${url}`;
+  }
+
+  // 获取 token
+  const token =
+    localStorage.getItem("token") || sessionStorage.getItem("token");
 
   const controller = new AbortController();
   try {
@@ -105,10 +123,26 @@ export async function fetchStream(url, data, onChunk, onComplete, onError) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(data),
       signal: controller.signal,
     });
+
+    // 处理 401 未授权
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
+      window.location.href = "/login";
+      onError("请先登录");
+      return;
+    }
+
+    if (!response.ok) {
+      onError(`请求失败: ${response.status}`);
+      return;
+    }
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     while (true) {
